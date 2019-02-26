@@ -4,7 +4,7 @@
 
 #define PI 3.14159265358979323846
 
-#define L 0.42
+#define L 0.25
 #define R  0.06
 
 #define maxVolt 6.3
@@ -15,8 +15,8 @@
 #define minWheelVelocity 0.239
 
 // rad/s
-#define maxAngularVelocity 3.79 
-#define minAngularVelocity 1.138 
+#define maxAngularVelocity 6.376
+#define minAngularVelocity 1.912
 
 // Motors Forward & Backward Enable pins
 #define MOTOR_RIGHT_F 2
