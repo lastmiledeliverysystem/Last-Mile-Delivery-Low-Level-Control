@@ -8,7 +8,8 @@
 #include "SPI_DRIVERS_config.h"
 
 //Global v & w
-float v,w;
+float v,w; // m/s, rad/s
+float preiousV, previousW;
 
 //Interrupts Variables
 float msg;
@@ -133,72 +134,94 @@ void calculate_voltages(float velocityR,float velocityL)
 
 void calculate_velocities(float v,float w)
 {
-	float rightVelocity ,leftVelocity;
-	
-	//Stop Motors
-	if (v == 0.0 && w == 0.0)
+	float rightVelocity ,leftVelocity; // rpm
+	float vR, vL; // m/s
+
+	if (v == 0.0 && w == 0.0) //Stop Motors
 	{
 		rightVelocity = leftVelocity = 0.0;
 	}
 	else
 	{	
-		//threshold
-		if (v > maxLinearVelocity)
+		if (v == 0) // Pure Angular Velocity
 		{
-			v = maxLinearVelocity;
+			// out of allowable boundaries
+			if ( fabsf(w) < minAngularVelocity || fabsf(w) > maxAngularVelocity)
+			{
+				// apply previous action
+				v = preiousV;
+				w = previousW;
+			}
 		}
-		else if (v < (-1 * maxLinearVelocity))
+		else if (w == 0) // Pure Translation
 		{
-			v = -1 * maxLinearVelocity;
+			// out of allowable boundaries
+			if ( fabsf(v) < minWheelVelocity || fabsf(v) > maxWheelVelocity)
+			{
+				// apply previous action
+				v = preiousV;
+				w = previousW;
+			}
 		}
-	
-		if ( w > maxW)
+
+		vR = (v + (w * L /2.0));  
+		vL = (v - (w * L /2.0));
+
+		if (vR == 0) // taking curve with the only left wheels 
 		{
-			w = maxW;
+			// out of allowable boundaries
+			if (fabsf(vL) < minWheelVelocity || fabsf(vL) > maxWheelVelocity)
+			{
+				//apply previous action
+				v = preiousV;
+				w = previousW;
+			}
 		}
-		else if ( w < (-1 * maxW))
+		else if (vL == 0) // taking curve with the only right wheels 
 		{
-			w = -1 * maxW;
+			// out of allowable boundaries
+			if (fabsf(vR) < minWheelVelocity || fabsf(vR) > maxWheelVelocity)
+			{
+				//apply previous action
+				v = preiousV;
+				w = previousW;
+			}
 		}
+		else // regular movement
+		{
+			if (fabsf(vL) < minWheelVelocity || fabsf(vR) > maxWheelVelocity)
+			{
+				//apply previous action
+				v = preiousV;
+				w = previousW;	
+			}
+		}
+
+
+		// Ready to be applied (rpm)
+		rightVelocity = (v + (w * L /2.0)) * (30.0 / (PI * R) );  
+		leftVelocity = (v - (w * L /2.0)) * (30.0 /  (PI * R) );
+
+		// Saving State
+		preiousV = v;
+		previousW = w;
 		
-		// v : m/s, w : rad/s 
-		// rpm = m/s * (30 / PI * R)
-		rightVelocity = (v + (w * L /2.0)) * (30.0 / (PI * R)); //rpm
-		leftVelocity = (v - (w * L /2.0)) * (30.0 / (PI * R)); //rpm 
-	
-		if (rightVelocity <= 0.0)
+		if (rightVelocity < 0.0)
 		{
 			 forward_right = 0;
 		}
-		else if (rightVelocity > 0.0)
+		else 
 		{
 			forward_right = 1;
 		}
-		if (leftVelocity <= 0.0)
+
+		if (leftVelocity < 0.0)
 		{
 			forward_left = 0;
 		}
-		else if (leftVelocity > 0.0)
+		else
 		{
 			forward_left = 1;
-		}
-		
-		//threshold
-		if (rightVelocity > maxVelocity)
-		{
-			rightVelocity = maxVelocity;
-		}
-		else if (rightVelocity < (-1 * maxVelocity)) 
-		{
-			rightVelocity = -1 * maxVelocity;
-		}
-		if (leftVelocity > maxVelocity) 
-		{
-			leftVelocity = maxVelocity;
-		}
-		if (leftVelocity < (-1 * maxVelocity)) 
-		{
-			leftVelocity = -1 * maxVelocity;
 		}
 		
 	}
@@ -228,6 +251,8 @@ int main(void)
 	//SPI Initiation
 	spi_init_slave();
 	
+	preiousV = 0.0;
+	previousW 0.0;
 	
     while (1)  
     {

@@ -22,9 +22,15 @@
 #define R  0.06
 
 #define maxVolt 6.3
-#define maxLinearVelocity 0.69
-#define maxVelocity 0.797
-#define maxW (PI/3.0)
+#define minVolt 1.95
+
+// m/s
+#define maxWheelVelocity 0.797
+#define minWheelVelocity 0.239
+
+// rad/s
+#define maxAngularVelocity 3.79 
+#define minAngularVelocity 1.138 
 
 #define F_CPU 16000000UL
 

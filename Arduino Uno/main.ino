@@ -1,13 +1,22 @@
 // the sensor communicates using SPI, so include the library:
 
+#include <math.h>
+
+#define PI 3.14159265358979323846
 
 #define L 0.42
 #define R  0.06
 
 #define maxVolt 6.3
-#define maxLinearVelocity 110
-#define maxVelocity 127
-#define maxW (PI/3.0)
+#define minVolt 1.95
+
+// m/s
+#define maxWheelVelocity 0.797
+#define minWheelVelocity 0.239
+
+// rad/s
+#define maxAngularVelocity 3.79 
+#define minAngularVelocity 1.138 
 
 // Motors Forward & Backward Enable pins
 #define MOTOR_RIGHT_F 2
@@ -26,6 +35,8 @@
 int forward_right = 0;
 int forward_left = 0;
 float v,w;
+float previousW = 0.0;
+float preiousV = 0.0;
 float msg;
 float received [4];
 int counter = 0;
@@ -102,65 +113,99 @@ void loop() {
 
 void calculate_velocities(float v,float w)
 {
-  float rightVelocity ,leftVelocity;
-  
-  //Stop Motors
-  if (v == 0.0 && w == 0.0)
-  {
-    rightVelocity = leftVelocity = 0.0;
-  }
-  else
-  { 
-    //threshold
-    constrain(v, -maxLinearVelocity, maxLinearVelocity);
-    constrain(w, -maxW, maxW);
+  float rightVelocity ,leftVelocity; // rpm
+	float vR, vL; // m/s
 
-    // Output --> RPM
-    rightVelocity = (v + (w * L /2.0)) * (30.0 / (PI * R)); 
-    leftVelocity = (v - (w * L /2.0)) * (30.0 / (PI * R)); 
+	if (v == 0.0 && w == 0.0) //Stop Motors
+	{
+		rightVelocity = leftVelocity = 0.0;
+	}
+	else
+	{	
+		if (v == 0) // Pure Angular Velocity
+		{
+			// out of allowable boundaries
+			if ( fabsf(w) < minAngularVelocity || fabsf(w) > maxAngularVelocity)
+			{
+				// apply previous action
+				v = preiousV;
+				w = previousW;
+			}
+		}
+		else if (w == 0) // Pure Translation
+		{
+			// out of allowable boundaries
+			if ( fabsf(v) < minWheelVelocity || fabsf(v) > maxWheelVelocity)
+			{
+				// apply previous action
+				v = preiousV;
+				w = previousW;
+			}
+		}
 
-    // Output --> m/s
-    //rightVelocity = ((v * PI * R /30.0 ) + (w * L /2.0)) * (30.0 / (PI * R));
-    //leftVelocity = ((v * PI * R /30.0 ) - (w * L /2.0)) * (30.0 / (PI * R));
-  
-    if (rightVelocity <= 0.0)
-    {
-       forward_right = 0;
-    }
-    else
-    {
-      forward_right = 1;
-    }
-    if (leftVelocity <= 0.0)
-    {
-      forward_left = 0;
-    }
-    else
-    {
-      forward_left = 1;
-    }
-    
-    //threshold
-    if (rightVelocity > maxVelocity)
-    {
-      rightVelocity = maxVelocity;
-    }
-    else if (rightVelocity < (-1 * maxVelocity)) 
-    {
-      rightVelocity = -1 * maxVelocity;
-    }
-    if (leftVelocity > maxVelocity) 
-    {
-      leftVelocity = maxVelocity;
-    }
-    if (leftVelocity < (-1 * maxVelocity)) 
-    {
-      leftVelocity = -1 * maxVelocity;
-    }
-    
-  }
-  
-  calculate_voltages(fabsf(rightVelocity),fabsf(leftVelocity));
+		vR = (v + (w * L /2.0));  
+		vL = (v - (w * L /2.0));
+
+		if (vR == 0) // taking curve with the only left wheels 
+		{
+			// out of allowable boundaries
+			if (fabsf(vL) < minWheelVelocity || fabsf(vL) > maxWheelVelocity)
+			{
+				//apply previous action
+				v = preiousV;
+				w = previousW;
+			}
+		}
+		else if (vL == 0) // taking curve with the only right wheels 
+		{
+			// out of allowable boundaries
+			if (fabsf(vR) < minWheelVelocity || fabsf(vR) > maxWheelVelocity)
+			{
+				//apply previous action
+				v = preiousV;
+				w = previousW;
+			}
+		}
+		else // regular movement
+		{
+			if (fabsf(vL) < minWheelVelocity || fabsf(vR) > maxWheelVelocity)
+			{
+				//apply previous action
+				v = preiousV;
+				w = previousW;	
+			}
+		}
+
+
+		// Ready to be applied (rpm)
+		rightVelocity = (v + (w * L /2.0)) * (30.0 / (PI * R) );  
+		leftVelocity = (v - (w * L /2.0)) * (30.0 /  (PI * R) );
+
+		// Saving State
+		preiousV = v;
+		previousW = w;
+		
+		if (rightVelocity < 0.0)
+		{
+			 forward_right = 0;
+		}
+		else 
+		{
+			forward_right = 1;
+		}
+
+		if (leftVelocity < 0.0)
+		{
+			forward_left = 0;
+		}
+		else
+		{
+			forward_left = 1;
+		}
+		
+	}
+	
+	calculate_voltages(fabsf(rightVelocity),fabsf(leftVelocity));
 }
 
 void calculate_voltages(float velocityR,float velocityL)
