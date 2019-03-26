@@ -3,6 +3,16 @@
 #include <math.h>
 
 
+// Global Variables
+int forward_right = 0;
+int forward_left = 0;
+float v,w;
+float previousW = 0.0;
+float preiousV = 0.0;
+int data = 0;
+float received [4];
+int counter = 0;
+
 #define L 0.25
 #define R  0.06
 
@@ -30,19 +40,10 @@
 #define MOTOR_LEFT_PWM_F 9
 #define MOTOR_LEFT_PWM_B 6
 
-// Global Variables
-int forward_right = 0;
-int forward_left = 0;
-float v,w;
-float previousW = 0.0;
-float preiousV = 0.0;
-float msg;
-float received [4];
-int counter = 0;
-
 
 
 void setup() {
+  
   Serial.begin(9600);
 
   // Setting PWM pins as output
@@ -63,25 +64,18 @@ void setup() {
  digitalWrite(MOTOR_LEFT_F, HIGH);
  digitalWrite(MOTOR_LEFT_B, HIGH);
   
-  // start the SPI library in slave mode
-  //pinMode(MISO, OUTPUT);
-  pinMode(MOSI, INPUT);
-  pinMode(SS,   INPUT);
-  pinMode(SCK,  INPUT);
-  
-  SPCR |= _BV(SPE);  
-  
-  // give the sensor time to set up:
+   
+ // give the sensor time to set up:
   delay(100);
 }
 
 
 void loop() {
-  if((SPSR & (1 << SPIF)) != 0)
-  {
-    msg = SPDR;
-    
-    received [counter++] = msg;
+  
+  if (Serial.available() > 0){ 
+   
+    data = Serial.read();
+    received [counter++] = data;
    
     if (counter == 4)
     {
@@ -98,15 +92,20 @@ void loop() {
       if  (received [3] == 1)
       {
         w = -1 * w;
-
+       
+      }
+      Serial.print("\n");
+      Serial.print(v);
+      Serial.print("\n");
+      Serial.print(w);
       calculate_velocities(v,w);
     }
   }
 }
 
-
 void calculate_velocities(float v,float w)
 {
+
   float rightVelocity ,leftVelocity; // rpm
   float vR, vL; // m/s
 
@@ -122,8 +121,8 @@ void calculate_velocities(float v,float w)
       if ( fabsf(w) < minAngularVelocity || fabsf(w) > maxAngularVelocity)
       {
         // apply previous action
-//        v = preiousV;
-//        w = previousW;
+        // v = preiousV;
+        // w = previousW;
       }
     }
     else if (w == 0) // Pure Translation
@@ -132,8 +131,8 @@ void calculate_velocities(float v,float w)
       if ( fabsf(v) < minWheelVelocity || fabsf(v) > maxWheelVelocity)
       {
         // apply previous action
-//        v = preiousV;
-//        w = previousW;
+        // v = preiousV;
+        // w = previousW;
       }
     }
 
@@ -146,8 +145,8 @@ void calculate_velocities(float v,float w)
       if (fabsf(vL) < minWheelVelocity || fabsf(vL) > maxWheelVelocity)
       {
         //apply previous action
-//        v = preiousV;
-//        w = previousW;
+        // v = preiousV;
+        // w = previousW;
       }
     }
     else if (vL == 0) // taking curve with the only right wheels 
@@ -156,8 +155,8 @@ void calculate_velocities(float v,float w)
       if (fabsf(vR) < minWheelVelocity || fabsf(vR) > maxWheelVelocity)
       {
         //apply previous action
-//        v = preiousV;
-//        w = previousW;
+        // v = preiousV;
+        // w = previousW;
       }
     }
     else // regular movement, both sides are moving with v and w
@@ -165,8 +164,8 @@ void calculate_velocities(float v,float w)
       if (fabsf(vL) < minWheelVelocity || fabsf(vR) > maxWheelVelocity)
       {
         //apply previous action
-//        v = preiousV;
-//        w = previousW;  
+        // v = preiousV;
+        // w = previousW;  
       }
     }
     
@@ -254,3 +253,4 @@ void calculate_pwms (float voltR, float voltL)
   }
   
 }
+
