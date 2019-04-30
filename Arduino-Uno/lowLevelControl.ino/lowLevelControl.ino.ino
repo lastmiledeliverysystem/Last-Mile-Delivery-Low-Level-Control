@@ -7,8 +7,7 @@
 int forward_right = 0;
 int forward_left = 0;
 float v,w;
-float previousW = 0.0;
-float preiousV = 0.0;
+
 int data = 0;
 float received [4];
 int counter = 0;
@@ -16,16 +15,19 @@ int counter = 0;
 #define L 0.25
 #define R  0.06
 
-#define maxVolt 6.3
-#define minVolt 1.95
+#define maxVoltR 8.16
+#define maxVoltL 8.18
+
+#define minVoltR 0.96
+#define minVoltL 0.96
 
 // m/s
-#define maxWheelVelocity 0.797
-#define minWheelVelocity 0.239
+#define maxWheelVelocity 1.19831
+#define minWheelVelocity 0.106869
 
 // rad/s
-#define maxAngularVelocity 6.376
-#define minAngularVelocity 1.912
+#define maxAngularVelocity 9.58498
+#define minAngularVelocity 0.690324
 
 // Motors Forward & Backward Enable pins
 #define MOTOR_RIGHT_F 2
@@ -33,13 +35,11 @@ int counter = 0;
 #define MOTOR_LEFT_F  7
 #define MOTOR_LEFT_B  8
 
-
 // PWM pins
 #define MOTOR_RIGHT_PWM_F 5
 #define MOTOR_RIGHT_PWM_B 3
 #define MOTOR_LEFT_PWM_F 9
 #define MOTOR_LEFT_PWM_B 6
-
 
 
 void setup() {
@@ -64,14 +64,13 @@ void setup() {
  digitalWrite(MOTOR_LEFT_F, HIGH);
  digitalWrite(MOTOR_LEFT_B, HIGH);
   
-   
  // give the sensor time to set up:
   delay(100);
 }
 
 
 void loop() {
-  
+
   if (Serial.available() > 0){ 
    
     data = Serial.read();
@@ -94,10 +93,6 @@ void loop() {
         w = -1 * w;
        
       }
-      Serial.print("\n");
-      Serial.print(v);
-      Serial.print("\n");
-      Serial.print(w);
       calculate_velocities(v,w);
     }
   }
@@ -106,8 +101,7 @@ void loop() {
 void calculate_velocities(float v,float w)
 {
 
-  float rightVelocity ,leftVelocity; // rpm
-  float vR, vL; // m/s
+  float rightVelocity ,leftVelocity; // m/s
 
   if (v == 0.0 && w == 0.0) //Stop Motors
   {
@@ -115,67 +109,9 @@ void calculate_velocities(float v,float w)
   }
   else
   { 
-    if (v == 0) // Pure Angular Velocity
-    {
-      // out of allowable boundaries
-      if ( fabsf(w) < minAngularVelocity || fabsf(w) > maxAngularVelocity)
-      {
-        // apply previous action
-        // v = preiousV;
-        // w = previousW;
-      }
-    }
-    else if (w == 0) // Pure Translation
-    {
-      // out of allowable boundaries
-      if ( fabsf(v) < minWheelVelocity || fabsf(v) > maxWheelVelocity)
-      {
-        // apply previous action
-        // v = preiousV;
-        // w = previousW;
-      }
-    }
-
-    vR = (v + (w * L /2.0));  
-    vL = (v - (w * L /2.0));
-
-    if (vR == 0) // taking curve with the only left wheels 
-    {
-      // out of allowable boundaries
-      if (fabsf(vL) < minWheelVelocity || fabsf(vL) > maxWheelVelocity)
-      {
-        //apply previous action
-        // v = preiousV;
-        // w = previousW;
-      }
-    }
-    else if (vL == 0) // taking curve with the only right wheels 
-    {
-      // out of allowable boundaries
-      if (fabsf(vR) < minWheelVelocity || fabsf(vR) > maxWheelVelocity)
-      {
-        //apply previous action
-        // v = preiousV;
-        // w = previousW;
-      }
-    }
-    else // regular movement, both sides are moving with v and w
-    {
-      if (fabsf(vL) < minWheelVelocity || fabsf(vR) > maxWheelVelocity)
-      {
-        //apply previous action
-        // v = preiousV;
-        // w = previousW;  
-      }
-    }
-    
-    // Ready to be applied (rpm)
-    rightVelocity = (v + (w * L /2.0)) * (30.0 / (PI * R) );  
-    leftVelocity = (v - (w * L /2.0)) * (30.0 /  (PI * R) );
-
-    // Saving State
-    preiousV = v;
-    previousW = w;
+    // Ready to be applied (m/s)
+    rightVelocity = (v + (w * L /2.0));  
+    leftVelocity = (v - (w * L /2.0));
     
     if (rightVelocity < 0.0)
     {
@@ -203,9 +139,9 @@ void calculate_velocities(float v,float w)
 void calculate_voltages(float velocityR,float velocityL)
 {
   float voltR,voltL;
-  
-  voltR = (0.04175 * velocityR) + 0.59855;
-  voltL = (0.04205 * velocityL) + 0.6013;
+ 
+  voltR = (0.2042 * pow(velocityR,2)) + (6.2299 * velocityR) + 0.4462;
+  voltL = (0.2047 * pow(velocityL,2)) + (6.2452 * velocityL) + 0.4473;
   
   if ( velocityR == 0.0 )
   {
@@ -215,7 +151,7 @@ void calculate_voltages(float velocityR,float velocityL)
   {
     voltL = 0.0;
   }
-  
+
   calculate_pwms(voltR, voltL);
 }
 
@@ -224,9 +160,8 @@ void calculate_pwms (float voltR, float voltL)
 {  
   int pwmR, pwmL;
   
-  pwmR = (int)((voltR /  maxVolt) * 255);
-
-  pwmL = (int)((voltL /  maxVolt) * 255);
+  pwmR = (int)((voltR / maxVoltR) * 255);
+  pwmL = (int)((voltL / maxVoltL) * 255);
   
   // Applying pwm to the the Right-side motors
    if (forward_right)
