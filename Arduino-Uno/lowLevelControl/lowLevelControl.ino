@@ -22,8 +22,8 @@ int counter = 0;
 #define minVoltL 0.96
 
 // m/s
-#define maxWheelVelocity 1.19831
-#define minWheelVelocity 0.106869
+#define maxWheelVelocity 1.0327
+#define minWheelVelocity 0.25
 
 // rad/s
 #define maxAngularVelocity 9.58498
@@ -102,6 +102,7 @@ void calculate_velocities(float v,float w)
 {
 
   float rightVelocity ,leftVelocity; // m/s
+  float norm;
 
   if (v == 0.0 && w == 0.0) //Stop Motors
   {
@@ -112,6 +113,19 @@ void calculate_velocities(float v,float w)
     // Ready to be applied (m/s)
     rightVelocity = (v + (w * L /2.0));  
     leftVelocity = (v - (w * L /2.0));
+
+    if (fabsf(rightVelocity) < minWheelVelocity || fabsf(leftVelocity) < minWheelVelocity)
+    {
+      norm = minWheelVelocity / min(fabsf(rightVelocity),fabsf(leftVelocity));
+      rightVelocity = rightVelocity * norm;
+      leftVelocity = leftVelocity * norm;
+    }
+    if (fabsf(rightVelocity) > maxWheelVelocity || fabsf(leftVelocity) > maxWheelVelocity)
+    {
+      norm = maxWheelVelocity / max(fabsf(rightVelocity),fabsf(leftVelocity));
+      rightVelocity = rightVelocity * norm;
+      leftVelocity = leftVelocity * norm;
+    }
     
     if (rightVelocity < 0.0)
     {
